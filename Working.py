@@ -1,0 +1,31 @@
+from pyspark import SparkContext
+file = r"D:\深圳培训\spark\实验\20171204\NDAQ.csv"
+sc = SparkContext("local","Simple App")
+print(file)
+raw_data = sc.textFile(file)
+print(raw_data.take(3))
+from collections import namedtuple
+Record = namedtuple("Record", ["date", "open", "high", "low", "close","adj_close", "volume"])
+def parse_record(s):
+    fields = s.split(",")
+    return Record(fields[0], *map(float, fields[1:6]), int(fields[6]))
+parsed_data = raw_data.map(parse_record)
+print(parsed_data.take(1))
+parsed_data.cache()
+# parsed_data = sc.textFile(file).map(parse_record).cache()
+print(parsed_data.map(lambda x: x.date).min())
+print(parsed_data.map(lambda x: x.date).max())
+print(parsed_data.map(lambda x: x.volume).sum())
+#日期取到月然后与前面的结果拼接
+with_month_data = parsed_data.map(lambda x: (x.date[:7], x))
+print(with_month_data.take(1))
+by_month_data = with_month_data.mapValues(lambda x: x.volume)
+print(by_month_data.take(1))
+by_month_data = by_month_data.reduceByKey(lambda x, y: x + y)
+print(by_month_data.take(1))
+by_month_data.top(1, lambda x: x[1])
+print(by_month_data.take(1))
+result_data = by_month_data.map(lambda t: ",".join(map(str, t)))
+print(result_data.take(1))
+#result_data.saveAsTextFile("out")
+result_data.repartition(2).saveAsTextFile("out")
