@@ -1,5 +1,7 @@
 from pyspark import SparkContext
 from collections import namedtuple
+import os
+os.environ["PYTHONHASHSEED"]=("0")
 file = r"D:\深圳培训\spark\实验\20171204\NDAQ.csv"
 sc = SparkContext("local","Simple App")
 Record = namedtuple("Record", ["date", "open", "high", "low", "close", "adj_close", "volume"])
