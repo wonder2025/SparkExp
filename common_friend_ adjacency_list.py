@@ -10,7 +10,7 @@
 邻接链表法计算共同朋友的个数
 """
 from pyspark.sql import SparkSession
-sparkSession = SparkSession.builder.enableHiveSupport().master("local").getOrCreate()
+
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 from pyspark.sql import Row
 #图的邻接链表表示法
@@ -21,7 +21,7 @@ graph = {1: [2,3,4],
          5: [2,3],
          6: [3],
          7: [3]}
-#比较大小
+#比较大小,小的在前，大的在后
 def comp(first,sencond,g):
     if first<sencond:
         return (first,sencond,g)
@@ -44,6 +44,7 @@ def generator(v,vertexAll):
                         if data not in vertexAll:
                             vertexAll.append(data)
     return vertexAll
+
 vertexAll = []
 def generatorAll ():
     for i in graph:
@@ -52,6 +53,8 @@ def generatorAll ():
 
 
 # print(generatorAll())
+#形成pair rdd
+sparkSession = SparkSession.builder.enableHiveSupport().master("local").getOrCreate()
 graphData = sparkSession.sparkContext.parallelize(generatorAll()).map(lambda src_dst:Row(src_dst[0], src_dst[1], src_dst[2]))
 graphSchemaABC = StructType([StructField('A', IntegerType(), nullable=False),
                             StructField('B', IntegerType(), nullable=False),

@@ -1,12 +1,24 @@
 """SimpleApp"""
 
-from pyspark import SparkContext
+# from pyspark import SparkContext
+#
+# logFile = r"D:\spark-2.2.0-bin-hadoop2.6\spark-2.2.0-bin-hadoop2.6\README.md "
+# sc = SparkContext("local","Simple App")
+# logData = sc.textFile(logFile).cache()
+#
+# numAs = logData.filter(lambda s: 'a' in s).count()
+# numBs = logData.filter(lambda s: 'b' in s).count()
 
-logFile = r"D:\spark-2.2.0-bin-hadoop2.6\spark-2.2.0-bin-hadoop2.6\README.md "
-sc = SparkContext("local","Simple App")
-logData = sc.textFile(logFile).cache()
+# print("Lines with a: %i, lines with b: %i"%(numAs, numBs))
 
-numAs = logData.filter(lambda s: 'a' in s).count()
-numBs = logData.filter(lambda s: 'b' in s).count()
+"""
+2.
+"""
+from pixiedust.packageManager import PackageManager
 
-print("Lines with a: %i, lines with b: %i"%(numAs, numBs))
+pkg = PackageManager()
+pkg.installPackage("graphframes:graphframes:0")
+pkg.printAllPackages()
+
+# sqlContext = SQLContext(sc)
+

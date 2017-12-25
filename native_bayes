@@ -1,0 +1,101 @@
+
+from displayfunction import display
+from pyspark.ml import Pipeline
+from pyspark.ml.classification import NaiveBayes
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from pyspark.ml.feature import StringIndexer, VectorAssembler
+from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
+from pyspark.mllib.evaluation import MulticlassMetrics
+from pyspark.sql import SQLContext, Row, SparkSession
+from pyspark.sql.types import StructType, LongType, StringType,FloatType,StructField
+
+spark=SparkSession.builder.config('spark.executer.memory','2g').master('local[3]').appName('bayes').getOrCreate()
+
+file = "D:\深圳培训\spark\iris.data"
+
+schema=StructType([StructField('SepalLength',FloatType(),nullable=False),StructField('SepalWidth',FloatType(),nullable=False),StructField('PetalLength',FloatType(),nullable=False),StructField('PetalWidth',FloatType(),nullable=False),StructField('Species',StringType(),nullable=False)])
+data=spark.read.csv(file, header="false",schema=schema)
+print(data.take(5))
+print("data count =",data.count())
+
+sqlContext = SQLContext(spark)
+data.registerTempTable('iris')
+
+irisdf = sqlContext.sql("SELECT SepalLength, SepalWidth, PetalLength, PetalWidth, Species FROM iris")
+print("irisdf count =",irisdf.count())
+irisdf.printSchema()
+
+# Convert target into numerical categories
+
+labelIndexer = StringIndexer(inputCol="Species", outputCol="label")
+display(irisdf.select("SepalLength", "Species"))
+#irisdf.select("SepalLength", "Species").show()
+print(irisdf.take(2))
+irisdf.printSchema()
+print("irissdf type =", type(irisdf))
+
+# Split the data into train and test
+splits = irisdf.randomSplit([0.6, 0.4], 1234)
+trainIris = splits[0]
+testIris = splits[1]
+# print("train type=",type(train))
+print("train count =",trainIris.count())
+print("test count =",testIris.count())
+
+vecAssembler = VectorAssembler(inputCols=["SepalLength", "SepalWidth", "PetalLength", "PetalWidth"], outputCol="features")
+
+# Train a NaiveBayes model
+nb = NaiveBayes(smoothing=1.0, modelType="multinomial")
+
+# Chain labelIndexer, vecAssembler and NBmodel in a
+pipeline = Pipeline(stages=[labelIndexer, vecAssembler, nb])
+
+# Run stages in pipeline and train model
+model = pipeline.fit(trainIris)
+
+# Make predictions on testData so we can measure the accuracy of our model on new data
+predictions = model.transform(testIris)
+
+# Display what results we can view
+predictions.printSchema()
+
+# Select results to view
+# display(predictions.select("label", "prediction", "probability"))
+#predictions.select("label", "prediction", "probability").show()
+predictions.show()
+
+# compute accuracy on the test set
+evaluator = MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction",
+                                                  metricName="accuracy")
+accuracy = evaluator.evaluate(predictions)
+print("Test set accuracy = " + str(accuracy))
+
+print(evaluator.explainParam("metricName"))
+
+# Create (prediction, label) pairs
+predictionAndLabel = predictions.select("prediction", "label").rdd
+
+# Generate confusion matrix
+metrics = MulticlassMetrics(predictionAndLabel)
+print (metrics.confusionMatrix())
+
+# Create ParamGrid and Evaluator for Cross Validation
+paramGrid = ParamGridBuilder().addGrid(nb.smoothing, [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]).build()
+cvEvaluator = MulticlassClassificationEvaluator(metricName="accuracy")
+
+# Run Cross-validation
+cv = CrossValidator(estimator=pipeline, estimatorParamMaps=paramGrid, evaluator=cvEvaluator)
+cvModel = cv.fit(trainIris)
+
+# Make predictions on testData. cvModel uses the bestModel.
+cvPredictions = cvModel.transform(testIris)
+
+# Select results to view
+cvPredictions.select("label", "prediction", "probability").show()
+
+# Evaluate bestModel found from Cross Validation
+print(evaluator.evaluate(cvPredictions))
+
+
+#End
+spark.stop()
